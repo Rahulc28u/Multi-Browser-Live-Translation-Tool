@@ -1,0 +1,109 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2821
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 // ==UserScript==\
+// @name         Live Translation \
+// @namespace    http://tampermonkey.net/\
+// @version      0.7\
+// @description  Translate selected text on a page to English using Google Translate and show the result in a popup\
+// @author       Rahul CU\
+// @match        *://*/*\
+// @grant        GM.xmlHttpRequest\
+// ==/UserScript==\
+\
+(function() \{\
+    'use strict';\
+\
+    const translateUrl = 'https://translate.googleapis.com/translate_a/single';\
+\
+    // Check if a string is non-empty\
+    function isNonEmpty(str) \{\
+        return str && str.trim().length > 0;\
+    \}\
+\
+    // Send translation request\
+    function translateToEnglish(text, callback) \{\
+        if (!isNonEmpty(text)) return;\
+\
+        const url = `$\{translateUrl\}?client=gtx&sl=auto&tl=en&dt=t&q=$\{encodeURIComponent(text)\}`;\
+\
+        GM.xmlHttpRequest(\{\
+            method: 'GET',\
+            url: url,\
+            onload: function(response) \{\
+                try \{\
+                    const res = JSON.parse(response.responseText);\
+                    if (res && res[0] && res[0][0] && res[0][0][0]) \{\
+                        callback(res[0][0][0]);\
+                    \} else \{\
+                        callback('Translation failed.');\
+                    \}\
+                \} catch (error) \{\
+                    callback('Translation failed: ' + error.message);\
+                \}\
+            \},\
+            onerror: function() \{\
+                callback('Translation request failed.');\
+            \}\
+        \});\
+    \}\
+\
+    // Create a popup/modal to display translated text\
+    function createPopup(translatedText) \{\
+        const popup = document.createElement('div');\
+        Object.assign(popup.style, \{\
+            position: 'fixed',\
+            top: '20%',\
+            left: '50%',\
+            transform: 'translateX(-50%)',\
+            padding: '20px',\
+            backgroundColor: 'white', // White background\
+            color: 'black', // Black text\
+            fontSize: '16px',\
+            borderRadius: '8px',\
+            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',\
+            zIndex: '9999',\
+            maxWidth: '80%',\
+            wordWrap: 'break-word',\
+            whiteSpace: 'pre-wrap',\
+            opacity: '1',\
+            transition: 'opacity 0.5s ease-out', // Fade out transition\
+        \});\
+\
+        // Set the translated text\
+        popup.innerText = translatedText;\
+        document.body.appendChild(popup);\
+\
+        // Fade out the popup before removing it\
+        function fadeOut() \{\
+            popup.style.opacity = '0';\
+            setTimeout(() => \{\
+                if (popup.parentElement) \{\
+                    document.body.removeChild(popup);\
+                \}\
+            \}, 500); // Wait for the transition to complete (500ms)\
+        \}\
+\
+        // Dismiss by click or scroll\
+        popup.addEventListener('click', fadeOut);\
+        window.addEventListener('scroll', fadeOut);\
+\
+        // Auto-close after 5 seconds\
+        setTimeout(fadeOut, 5000);\
+    \}\
+\
+    // Detect text selection and translate\
+    document.addEventListener('mouseup', () => \{\
+        const selectedText = window.getSelection().toString();\
+        if (isNonEmpty(selectedText)) \{\
+            translateToEnglish(selectedText, (translatedText) => \{\
+                createPopup(translatedText);\
+            \});\
+        \}\
+    \});\
+\})();\
+}
